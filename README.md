@@ -438,9 +438,15 @@ await ws_server.start_server()
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the AGK FIRE INC Personal Use License - see the [LICENSE](LICENSE) file for details.
+
+**Free for Personal Use**: Individuals are welcome to use EQM (Aditya369) for personal, non-commercial projects, research, and learning.
+
+**Commercial Use**: Commercial applications, business use, or any revenue-generating activities require explicit written permission from AGK FIRE INC.
 
 Copyright (c) 2023 AGK FIRE INC. All rights reserved.
+
+For commercial licensing inquiries, please contact: agk4444@gmail.com
 
 ## Acknowledgments
 
@@ -468,8 +474,19 @@ EQM (Aditya369) is developed and owned by **AGK FIRE INC**.
 All intellectual property rights, including but not limited to patents, trademarks,
 and copyrights, are owned by AGK FIRE INC.
 
-For commercial licensing, partnerships, or collaboration opportunities,
+### Usage Rights
+
+- **✅ Personal Use**: Free for individuals, students, and hobbyists
+- **✅ Academic Research**: Free for non-commercial research and education
+- **✅ Open Source Projects**: Free for personal open-source contributions
+- **❌ Commercial Use**: Requires licensing agreement with AGK FIRE INC
+
+### Commercial Licensing
+
+For commercial applications, business use, or any revenue-generating activities,
 please contact: agk4444@gmail.com
+
+We offer flexible commercial licensing options tailored to your specific needs.
 
 ## Contact
 
