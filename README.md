@@ -464,9 +464,9 @@ If you use EQM in your research, please cite:
 
 For questions, support, or collaboration opportunities:
 
-- **Email**: your.email@example.com
-- **Project Website**: https://github.com/your-repo/eqm-aditya369
-- **Issues**: https://github.com/your-repo/eqm-aditya369/issues
+- **Email**: agk4444@gmail.com
+- **Project Website**: https://github.com/agk4444/Aditya369
+- **Issues**: https://github.com/agk4444/Aditya369/issues
 
 ---
 
