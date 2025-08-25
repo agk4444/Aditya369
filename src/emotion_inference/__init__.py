@@ -3,10 +3,12 @@ EQM (Aditya369) - Emotion Inference Module
 
 This module provides real-time emotion detection and inference
 capabilities for the Emotional Quotient Model system.
+
+Copyright (c) 2023 AGK FIRE INC. All rights reserved.
 """
 
 __version__ = "1.0.0"
-__author__ = "EQM Development Team"
+__author__ = "AGK FIRE INC"
 
 from .emotion_predictor import EmotionPredictor
 from .real_time_processor import RealTimeEmotionProcessor

@@ -438,7 +438,9 @@ await ws_server.start_server()
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2023 AGK FIRE INC. All rights reserved.
 
 ## Acknowledgments
 
@@ -454,11 +456,20 @@ If you use EQM in your research, please cite:
 ```bibtex
 @software{eqm_aditya369,
   title={EQM (Aditya369): Emotional Quotient Model for Physiological Emotion Detection},
-  author={Your Name},
+  author={AGK FIRE INC},
   year={2023},
-  url={https://github.com/your-repo/eqm-aditya369}
+  url={https://github.com/agk4444/Aditya369}
 }
 ```
+
+## Ownership and Attribution
+
+EQM (Aditya369) is developed and owned by **AGK FIRE INC**.
+All intellectual property rights, including but not limited to patents, trademarks,
+and copyrights, are owned by AGK FIRE INC.
+
+For commercial licensing, partnerships, or collaboration opportunities,
+please contact: agk4444@gmail.com
 
 ## Contact
 
@@ -471,3 +482,4 @@ For questions, support, or collaboration opportunities:
 ---
 
 *EQM (Aditya369) - Transforming physiological data into emotional intelligence through AI.*
+*Developed by AGK FIRE INC.*

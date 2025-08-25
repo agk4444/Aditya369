@@ -3,10 +3,12 @@ EQM (Aditya369) - Data Ingestion Module
 
 This module handles real-time data collection from various smart devices
 and wearables for the Emotional Quotient Model system.
+
+Copyright (c) 2023 AGK FIRE INC. All rights reserved.
 """
 
 __version__ = "1.0.0"
-__author__ = "EQM Development Team"
+__author__ = "AGK FIRE INC"
 
 from .device_connectors import DeviceConnector
 from .data_validator import DataValidator
