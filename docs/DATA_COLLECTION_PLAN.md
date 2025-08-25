@@ -30,8 +30,9 @@ This document outlines the comprehensive data collection strategy for the EQM (A
 
 6. **Smart Glasses**
    - Heart Rate (PPG), Eye gaze tracking, Pupil dilation, Blink rate, Head movement, Temperature
-   - Device-specific SDK or cloud API
-   - Real-time cognitive load assessment and attention monitoring
+   - Voice analysis: Pitch, volume, speech rate, tremor detection, emotional tone
+   - Device-specific SDK or cloud API with audio processing
+   - Multi-modal emotion detection combining visual, acoustic, and physiological signals
 
 ## Data Collection Architecture
 
@@ -92,6 +93,10 @@ async def oura_webhook(request: Request):
 | Pupil Dilation | 30 Hz | mm | 2-8 | ±0.1 mm |
 | Blink Rate | 30 Hz | BPM | 10-30 | ±1 BPM |
 | Head Movement | 30 Hz | degrees | -90 to 90 | ±1 degree |
+| Voice Pitch | 44.1 kHz | Hz | 75-1000 | ±1 Hz |
+| Voice Volume | 44.1 kHz | dB | 40-90 | ±1 dB |
+| Speech Rate | 1 Hz | WPM | 120-200 | ±5 WPM |
+| Voice Tremor | 44.1 kHz | ratio | 0-1 | ±0.01 |
 
 #### Data Format Standards
 

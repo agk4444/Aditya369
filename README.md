@@ -16,6 +16,31 @@ EQM is a sophisticated machine learning system designed to detect human emotions
 - **Privacy-Focused**: Secure data handling with anonymization and encryption
 - **Scalable Architecture**: Designed for both edge and cloud deployment
 
+## Voice Analysis Integration
+
+EQM (Aditya369) now includes advanced voice analysis capabilities to provide richer emotional context:
+
+### 🎤 Voice Emotion Features
+- **Pitch Analysis**: Fundamental frequency tracking and vocal range analysis
+- **Speech Patterns**: Speech rate, pause detection, and rhythm analysis
+- **Voice Quality**: Tremor detection, breathiness, and vocal stability
+- **Emotional Prosody**: Tone analysis and emotional speech pattern recognition
+- **Real-time Processing**: Continuous voice emotion monitoring during conversations
+
+### 🔊 Voice Data Sources
+- **Smart Glasses**: Built-in microphones with high-quality audio capture
+- **Wearable Devices**: Voice activity detection and basic audio features
+- **External Microphones**: Integration with professional audio equipment
+
+### 🧠 Multi-Modal Emotion Detection
+Combining physiological, visual, and acoustic data for comprehensive emotion analysis:
+
+```
+Physiological (HR, HRV, GSR) + Visual (Eye gaze, facial) + Acoustic (Voice, tone)
+                       ↓
+                Unified Emotion Prediction
+```
+
 ## System Architecture
 
 ### Core Components
@@ -321,9 +346,10 @@ class ModelTrainer:
 
 ### Smart Glasses
 - **Data Sources**: Heart rate (PPG), eye gaze tracking, pupil dilation, blink rate, head movement, temperature
-- **API**: Device-specific SDK or cloud API
-- **Sampling Rate**: Up to 30Hz for eye tracking, 10Hz for PPG
-- **Key Features**: Visual attention monitoring, cognitive load assessment, focus tracking
+- **Voice Features**: Pitch, volume, speech rate, tremor detection, emotional tone analysis
+- **API**: Device-specific SDK or cloud API with audio processing
+- **Sampling Rate**: Up to 30Hz for eye tracking, 44.1kHz for voice, 10Hz for PPG
+- **Key Features**: Multi-modal emotion detection combining visual, acoustic, and physiological signals
 
 ## Data Formats
 

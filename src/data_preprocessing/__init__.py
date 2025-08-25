@@ -15,11 +15,15 @@ from .feature_extractor import FeatureExtractor
 from .signal_processor import SignalProcessor
 from .temporal_processor import TemporalProcessor
 from .preprocessing_pipeline import PreprocessingPipeline
+from .voice_analyzer import VoiceAnalyzer, EmotionFromVoiceAnalyzer, VoiceAnalysisConfig
 
 __all__ = [
     'DataCleaner',
     'FeatureExtractor',
     'SignalProcessor',
     'TemporalProcessor',
-    'PreprocessingPipeline'
+    'PreprocessingPipeline',
+    'VoiceAnalyzer',
+    'EmotionFromVoiceAnalyzer',
+    'VoiceAnalysisConfig'
 ]

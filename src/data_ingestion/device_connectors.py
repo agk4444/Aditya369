@@ -351,6 +351,21 @@ class SmartGlassesConnector(DeviceConnector):
                 elif sensor_type == "temperature":
                     value = 36.6 + (0.3 * 0.5)  # Skin temperature
                     unit = "°C"
+                elif sensor_type == "voice_pitch":
+                    value = 220 + (50 * 0.5)  # Fundamental frequency in Hz
+                    unit = "Hz"
+                elif sensor_type == "voice_volume":
+                    value = 65 + (15 * 0.5)  # Volume in dB
+                    unit = "dB"
+                elif sensor_type == "speech_rate":
+                    value = 150 + (50 * 0.5)  # Words per minute
+                    unit = "WPM"
+                elif sensor_type == "voice_tremor":
+                    value = 0.8 + (0.5 * 0.5)  # Tremor intensity (0-1)
+                    unit = "ratio"
+                elif sensor_type == "emotional_tone":
+                    value = 0.7 + (0.3 * 0.5)  # Emotional tone confidence
+                    unit = "confidence"
                 else:
                     continue
 
