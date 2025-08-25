@@ -294,6 +294,83 @@ class FitbitConnector(DeviceConnector):
         return data
 
 
+class SmartGlassesConnector(DeviceConnector):
+    """Connector for Smart Glasses devices (AR/VR glasses with physiological sensors)"""
+
+    def __init__(self, config: DeviceConfig):
+        super().__init__(config)
+        self.session = aiohttp.ClientSession()
+        self.api_key = config.api_key
+
+    async def connect(self) -> bool:
+        """Connect to Smart Glasses API"""
+        try:
+            # Smart glasses typically use Bluetooth/WiFi or cloud APIs
+            # This could be for devices like AR glasses with PPG sensors
+            self.is_connected = True
+            logger.info("Connected to Smart Glasses")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to connect to Smart Glasses: {e}")
+            return False
+
+    async def disconnect(self) -> bool:
+        """Disconnect from Smart Glasses"""
+        if self.session:
+            await self.session.close()
+        self.is_connected = False
+        logger.info("Disconnected from Smart Glasses")
+        return True
+
+    async def get_sensor_data(self, sensor_types: List[str]) -> List[SensorData]:
+        """Get sensor data from Smart Glasses"""
+        if not self.is_connected:
+            return []
+
+        data = []
+        base_timestamp = datetime.utcnow()
+
+        for sensor_type in sensor_types:
+            try:
+                # Simulate smart glasses sensor data
+                if sensor_type == "heart_rate":
+                    value = 75 + (10 * 0.5)  # PPG-based HR monitoring
+                    unit = "BPM"
+                elif sensor_type == "eye_gaze":
+                    value = 0.85  # Attention/focus level (0-1)
+                    unit = "ratio"
+                elif sensor_type == "pupil_dilation":
+                    value = 3.2 + (1.5 * 0.5)  # Pupil size in mm
+                    unit = "mm"
+                elif sensor_type == "blink_rate":
+                    value = 15 + (5 * 0.5)  # Blinks per minute
+                    unit = "BPM"
+                elif sensor_type == "head_movement":
+                    value = 2.1 + (1.0 * 0.5)  # Movement variance
+                    unit = "degrees"
+                elif sensor_type == "temperature":
+                    value = 36.6 + (0.3 * 0.5)  # Skin temperature
+                    unit = "°C"
+                else:
+                    continue
+
+                sensor_data = SensorData(
+                    device_id=self.config.device_type,
+                    user_id="user_001",
+                    timestamp=base_timestamp,
+                    sensor_type=sensor_type,
+                    value=round(value, 2),
+                    unit=unit,
+                    metadata={"device_model": "Smart Glasses Pro", "sensor_quality": "high"}
+                )
+                data.append(sensor_data)
+
+            except Exception as e:
+                logger.error(f"Error getting {sensor_type} data: {e}")
+
+        return data
+
+
 class WebSocketDataConnector(DeviceConnector):
     """Generic WebSocket connector for real-time data streaming"""
 
@@ -370,6 +447,7 @@ class DeviceConnectorFactory:
             'apple_watch': AppleWatchConnector,
             'oura_ring': OuraRingConnector,
             'fitbit': FitbitConnector,
+            'smart_glasses': SmartGlassesConnector,
             'websocket': WebSocketDataConnector
         }
 
@@ -402,6 +480,11 @@ async def demo_device_connectors():
             api_key="fitbit_client_id",
             api_secret="fitbit_client_secret",
             base_url="https://api.fitbit.com"
+        ),
+        DeviceConfig(
+            device_type="smart_glasses",
+            api_key="glasses_api_key",
+            base_url="https://api.smartglasses.com"
         )
     ]
 

@@ -9,7 +9,7 @@ EQM is a sophisticated machine learning system designed to detect human emotions
 ## Key Features
 
 - **Real-time Emotion Detection**: Continuous monitoring and analysis of emotional states
-- **Multi-device Support**: Compatible with Apple Watch, Oura Ring, Fitbit, Samsung Galaxy Watch, and Garmin devices
+- **Multi-device Support**: Compatible with Apple Watch, Oura Ring, Fitbit, Samsung Galaxy Watch, Garmin, and Smart Glasses devices
 - **Advanced ML Models**: CNN, LSTM, Transformer, and ensemble architectures for robust emotion classification
 - **Comprehensive Data Pipeline**: From raw sensor data to emotion predictions
 - **WebSocket API**: Real-time communication for integration with applications
@@ -92,7 +92,7 @@ Complete technical documentation for EQM (Aditya369):
 | Document | Description | Key Topics |
 |----------|-------------|------------|
 | [Architecture](docs/ARCHITECTURE.md) | System design | Components, data flow, scalability |
-| [Data Collection](docs/DATA_COLLECTION_PLAN.md) | Device integration | Apple Watch, Oura Ring, Fitbit, Samsung |
+| [Data Collection](docs/DATA_COLLECTION_PLAN.md) | Device integration | Apple Watch, Oura Ring, Fitbit, Samsung, Smart Glasses |
 | [Feature Engineering](docs/DATA_PROCESSING_FEATURE_ENGINEERING.md) | Signal processing | Statistical, frequency, wavelet, temporal features |
 | [ML Models](docs/ML_MODEL_ARCHITECTURE.md) | Model architectures | CNN, LSTM, Transformer, Ensemble training |
 | [Use Cases](docs/USE_CASES.md) | Applications | Healthcare, education, workplace, gaming |
@@ -318,6 +318,12 @@ class ModelTrainer:
 - **Data Sources**: Heart rate, stress, sleep, activity
 - **API**: Garmin Connect API
 - **Sampling Rate**: Up to 1Hz
+
+### Smart Glasses
+- **Data Sources**: Heart rate (PPG), eye gaze tracking, pupil dilation, blink rate, head movement, temperature
+- **API**: Device-specific SDK or cloud API
+- **Sampling Rate**: Up to 30Hz for eye tracking, 10Hz for PPG
+- **Key Features**: Visual attention monitoring, cognitive load assessment, focus tracking
 
 ## Data Formats
 

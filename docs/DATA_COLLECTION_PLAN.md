@@ -28,6 +28,11 @@ This document outlines the comprehensive data collection strategy for the EQM (A
    - Heart Rate, Stress levels
    - Garmin Connect API
 
+6. **Smart Glasses**
+   - Heart Rate (PPG), Eye gaze tracking, Pupil dilation, Blink rate, Head movement, Temperature
+   - Device-specific SDK or cloud API
+   - Real-time cognitive load assessment and attention monitoring
+
 ## Data Collection Architecture
 
 ### Real-time Streaming Pipeline
@@ -83,6 +88,10 @@ async def oura_webhook(request: Request):
 | GSR | 1-10 Hz | μS | 0.5-20 | ±0.1 μS |
 | SpO2 | 0.1-1 Hz | % | 70-100 | ±1% |
 | Accelerometer | 10-100 Hz | m/s² | -78 to 78 | ±0.1 m/s² |
+| Eye Gaze (X,Y) | 30 Hz | pixels | 0-1920 | ±1 pixel |
+| Pupil Dilation | 30 Hz | mm | 2-8 | ±0.1 mm |
+| Blink Rate | 30 Hz | BPM | 10-30 | ±1 BPM |
+| Head Movement | 30 Hz | degrees | -90 to 90 | ±1 degree |
 
 #### Data Format Standards
 
@@ -242,6 +251,7 @@ def validate_sensor_data(data):
 - Samsung Galaxy Watch integration
 - Fitbit integration
 - Garmin integration
+- Smart Glasses integration
 
 ### Phase 3: Advanced Features (Month 5-6)
 - Real-time streaming optimization
