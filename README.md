@@ -48,7 +48,8 @@ eqm_aditya369/
 │   ├── ARCHITECTURE.md           # System architecture
 │   ├── DATA_COLLECTION_PLAN.md   # Data collection strategy
 │   ├── DATA_PROCESSING_FEATURE_ENGINEERING.md
-│   └── ML_MODEL_ARCHITECTURE.md
+│   ├── ML_MODEL_ARCHITECTURE.md  # ML model designs
+│   └── USE_CASES.md              # Real-world applications
 ├── src/
 │   ├── data_ingestion/           # Data collection components
 │   │   ├── device_connectors.py  # Device-specific connectors
@@ -73,6 +74,28 @@ eqm_aditya369/
 │   └── intermediate/             # Temporary processing files
 └── README.md                     # This file
 ```
+
+## 📚 Documentation
+
+Complete technical documentation for EQM (Aditya369):
+
+### 🏗️ System Architecture
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Complete system design and components
+- **[DATA_COLLECTION_PLAN.md](docs/DATA_COLLECTION_PLAN.md)** - Multi-device data collection strategy
+- **[DATA_PROCESSING_FEATURE_ENGINEERING.md](docs/DATA_PROCESSING_FEATURE_ENGINEERING.md)** - Advanced preprocessing and feature extraction
+
+### 🤖 Machine Learning
+- **[ML_MODEL_ARCHITECTURE.md](docs/ML_MODEL_ARCHITECTURE.md)** - CNN, LSTM, Transformer, and Ensemble models
+- **[USE_CASES.md](docs/USE_CASES.md)** - Real-world applications across 8+ industries
+
+### 📖 Quick Links
+| Document | Description | Key Topics |
+|----------|-------------|------------|
+| [Architecture](docs/ARCHITECTURE.md) | System design | Components, data flow, scalability |
+| [Data Collection](docs/DATA_COLLECTION_PLAN.md) | Device integration | Apple Watch, Oura Ring, Fitbit, Samsung |
+| [Feature Engineering](docs/DATA_PROCESSING_FEATURE_ENGINEERING.md) | Signal processing | Statistical, frequency, wavelet, temporal features |
+| [ML Models](docs/ML_MODEL_ARCHITECTURE.md) | Model architectures | CNN, LSTM, Transformer, Ensemble training |
+| [Use Cases](docs/USE_CASES.md) | Applications | Healthcare, education, workplace, gaming |
 
 ## Installation
 
