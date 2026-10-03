@@ -1,0 +1,334 @@
+"""Build aditya369-wesad.ipynb — wrist-only WESAD stress/affect classifier for Kaggle."""
+import json
+
+DST = "aditya369-wesad.ipynb"
+
+def md(source):
+    return {"cell_type": "markdown", "metadata": {}, "source": source.splitlines(keepends=True)}
+
+def code(source):
+    return {"cell_type": "code", "metadata": {},
+            "source": source.splitlines(keepends=True),
+            "outputs": [], "execution_count": None}
+
+cells = []
+
+cells.append(md("""# Aditya369-WESAD — wrist wearable stress/affect classifier (Kaggle free tier)
+
+- **Data:** WESAD — 15 subjects, wrist Empatica E4 (BVP 64Hz, EDA 4Hz, TEMP 4Hz, ACC 32Hz)
+- **Task:** 3-class — baseline / stress / amusement (meditation + transient windows dropped)
+- **Model:** small 1D-CNN (~225K params) on 60s windows @ 32Hz, wrist only (the consumer-wearable story)
+- **Protocol:** leave-one-subject-out, 15 folds — the honest eval; no subject leaks between train and test
+- **Budget:** ~1 GPU-hour total on a T4 (each fold trains in 1-3 min)
+
+> **Attach the dataset first:** Add-ons → Add input → search `orvile/wesad-wearable-stress-affect-detection-dataset`
+> (fallback: `qiriro/wesad-stress-dataset`). The discovery cell fails loudly if it can't find the subject `.pkl` files.
+
+> **Honest expectations:** the WESAD paper's own benchmark hits ~80% 3-class accuracy (wrist-only a bit lower).
+> Published 1D-CNN work lands ~0.70 macro-F1 with wide per-subject variance. If this notebook reports 95%+,
+> something leaked — check the subject split, not the model.
+"""))
+
+cells.append(code('''# Hardware probe
+import subprocess
+print(subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv"],
+                     capture_output=True, text=True).stdout)
+'''))
+
+cells.append(code('''# Imports (all preinstalled on the Kaggle image) — versions printed for the record
+import torch, scipy, sklearn
+import numpy as np
+print("torch", torch.__version__, "| cuda:", torch.cuda.is_available())
+print("scipy", scipy.__version__, "| sklearn", sklearn.__version__, "| numpy", np.__version__)
+'''))
+
+cells.append(code('''# Config
+import os
+
+CANDIDATE_SLUGS = ["orvile/wesad-wearable-stress-affect-detection-dataset",
+                   "qiriro/wesad-stress-dataset"]
+FS        = 32          # common rate: BVP 64->32, EDA/TEMP 4->32, ACC native 32
+WIN_S     = 60          # window length, seconds
+OVERLAP   = 0.5         # 50% overlap
+CHANNELS  = ["BVP", "EDA", "TEMP", "ACC"]   # ACC expands to x/y/z -> 6 channels
+LABEL_MAP = {1: "baseline", 2: "stress", 3: "amusement"}  # 0/4/5/6/7 dropped
+SEED      = 42
+EPOCHS    = 30
+BS        = 32
+LR        = 1e-3
+PATIENCE  = 7           # early stopping on val macro-F1
+SMOKE     = False       # True -> 3 subjects x 5 epochs, quick pipeline check
+OUT = "/kaggle/working/aditya369-wesad"
+os.makedirs(OUT, exist_ok=True)
+np.random.seed(SEED); torch.manual_seed(SEED)
+print("OUT", OUT, "| smoke:", SMOKE)
+'''))
+
+cells.append(code('''# Data discovery — find the subject .pkl files under /kaggle/input
+import glob
+
+def find_wesad():
+    hits = []
+    for root in glob.glob("/kaggle/input/*"):
+        pkls = glob.glob(root + "/**/S*.pkl", recursive=True)
+        # keep only real subject files S2..S17 (skip S12, which WESAD excludes)
+        pkls = [p for p in pkls if p.split("/")[-1][1:].split(".")[0].isdigit()]
+        if pkls:
+            hits.append((root, sorted(pkls)))
+    return hits
+
+hits = find_wesad()
+if not hits:
+    raise SystemExit(
+        "WESAD not found under /kaggle/input. Add-ons -> Add input -> search for\\n"
+        "  orvile/wesad-wearable-stress-affect-detection-dataset\\n"
+        "  (fallback: qiriro/wesad-stress-dataset), then re-run."
+    )
+DATA_ROOT, PKLS = hits[0]
+print("using", DATA_ROOT, "| subjects:", len(PKLS))
+print("e.g.", PKLS[0])
+'''))
+
+cells.append(code('''# Preprocess: resample wrist -> 32Hz, per-subject z-norm, 60s windows, majority label
+import pickle
+from scipy.signal import resample_poly
+
+WRIST_FS = {"BVP": 64, "EDA": 4, "TEMP": 4, "ACC": 32}
+CHEST_FS = 700  # label array runs at the chest rate
+
+def load_subject(pkl_path):
+    with open(pkl_path, "rb") as f:
+        d = pickle.load(f, encoding="latin1")  # py2 pickle
+    wrist = d["signal"]["wrist"]
+    label = np.asarray(d["label"]).ravel()
+    return wrist, label
+
+def resample_to_32(x, fs_in):
+    if fs_in == FS:
+        return np.asarray(x, dtype=np.float32).ravel()
+    # polyphase: exact rational ratios only (64->32, 4->32)
+    up, down = FS // np.gcd(FS, fs_in), fs_in // np.gcd(FS, fs_in)
+    return resample_poly(np.asarray(x, dtype=np.float32).ravel(), up, down).astype(np.float32)
+
+def subject_windows(pkl_path):
+    wrist, label = load_subject(pkl_path)
+    # stack channels at 32Hz: BVP, EDA, TEMP, ACCx3
+    chans = [resample_to_32(wrist["BVP"], 64),
+             resample_to_32(wrist["EDA"], 4),
+             resample_to_32(wrist["TEMP"], 4)]
+    acc = np.asarray(wrist["ACC"], dtype=np.float32)
+    if acc.ndim == 2 and acc.shape[1] == 3:
+        acc = acc.T  # -> (3, N)
+    for ax in range(3):
+        chans.append(resample_to_32(acc[ax], 32))
+    n = min(len(c) for c in chans)
+    sig = np.stack([c[:n] for c in chans])          # (6, N)
+    sig = (sig - sig.mean(axis=1, keepdims=True)) / (sig.std(axis=1, keepdims=True) + 1e-8)  # per-subject z-norm
+    win, step = WIN_S * FS, int(WIN_S * FS * (1 - OVERLAP))
+    Xs, ys = [], []
+    for s in range(0, n - win + 1, step):
+        t0 = s / FS
+        lab_win = label[int(t0 * CHEST_FS): int((t0 + WIN_S) * CHEST_FS)]
+        if len(lab_win) == 0:
+            continue
+        maj = int(np.bincount(lab_win).argmax())    # majority vote over the window
+        if maj not in LABEL_MAP:
+            continue                               # drop transient / meditation
+        Xs.append(sig[:, s:s + win]); ys.append(maj)
+    subj = pkl_path.split("/")[-1].split(".")[0]
+    return subj, np.stack(Xs).astype(np.float32), np.array(ys, dtype=np.int64)
+
+all_subj, all_X, all_y = [], [], []
+for p in PKLS:
+    if SMOKE and len(all_subj) >= 3:
+        break
+    s, X, y = subject_windows(p)
+    print(f"{s}: {len(X)} windows", {int(k): int((y == k).sum()) for k in sorted(set(y.tolist()))})
+    all_subj.append(s); all_X.append(X); all_y.append(y)
+X_all = np.concatenate(all_X)          # (n_windows, 6, 1920)
+y_all = np.concatenate(all_y)
+print("total:", X_all.shape, "classes:", LABEL_MAP)
+np.savez_compressed(f"{OUT}/windows.npz", X=X_all, y=y_all,
+                    subj=np.array([s for s, x in zip(all_subj, all_X) for _ in range(len(x))]))
+'''))
+
+cells.append(code('''# Audit: class balance per subject + one example window per class
+import matplotlib.pyplot as plt
+
+subs = np.load(f"{OUT}/windows.npz")["subj"]
+Xa = np.load(f"{OUT}/windows.npz")["X"]; ya = np.load(f"{OUT}/windows.npz")["y"]
+print(f"{'subject':>8} {'n':>5} " + " ".join(f"{v[:4]:>9}" for v in LABEL_MAP.values()))
+for s in sorted(set(subs.tolist())):
+    m = subs == s
+    print(f"{s:>8} {m.sum():>5} " + " ".join(f"{int((ya[m] == k).sum()):>9}" for k in LABEL_MAP))
+fig, axes = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
+for ax, k in zip(axes, LABEL_MAP):
+    i = np.where(ya == k)[0][0]
+    ax.plot(Xa[i, 1], lw=0.8)  # EDA channel: the strongest stress signal
+    ax.set_title(f"{LABEL_MAP[k]} — EDA (z-scored, 60s @32Hz)")
+    ax.set_ylabel("z")
+plt.tight_layout(); plt.savefig(f"{OUT}/examples.png", dpi=100)
+print("class totals:", {LABEL_MAP[k]: int((ya == k).sum()) for k in LABEL_MAP})
+'''))
+
+cells.append(code('''# Model: small 1D-CNN (~225K params) — minutes per fold on a T4
+import torch.nn as nn
+
+class StressCNN(nn.Module):
+    def __init__(self, n_ch=6, n_cls=3):
+        super().__init__()
+        def block(cin, cout):
+            return nn.Sequential(
+                nn.Conv1d(cin, cout, 7, padding=3), nn.BatchNorm1d(cout), nn.ReLU(),
+                nn.Conv1d(cout, cout, 7, padding=3), nn.BatchNorm1d(cout), nn.ReLU(),
+                nn.MaxPool1d(4))
+        self.feat = nn.Sequential(block(n_ch, 32), block(32, 64), block(64, 128))
+        self.head = nn.Sequential(nn.AdaptiveAvgPool1d(1), nn.Flatten(),
+                                  nn.Dropout(0.3), nn.Linear(128, n_cls))
+    def forward(self, x):
+        return self.head(self.feat(x))
+
+model = StressCNN()
+n_params = sum(p.numel() for p in model.parameters())
+print(f"params: {n_params:,} | input: (6, {WIN_S * FS})")
+'''))
+
+cells.append(code('''# Train: leave-one-subject-out, 15 folds, early stopping on a val split of the train subjects
+import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
+from sklearn.metrics import f1_score, accuracy_score
+from sklearn.utils.class_weight import compute_class_weight
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+subs = np.load(f"{OUT}/windows.npz")["subj"]
+Xa = torch.from_numpy(np.load(f"{OUT}/windows.npz")["X"])
+ya = torch.from_numpy(np.load(f"{OUT}/windows.npz")["y"])
+uniq = sorted(set(subs.tolist()))
+EP = 5 if SMOKE else EPOCHS
+rng = np.random.RandomState(SEED)
+fold_metrics, best = [], None
+
+for fi, test_s in enumerate(uniq):
+    te = subs == test_s
+    tr_idx = np.where(~te)[0]
+    # stratified 10% val split from the TRAIN subjects only (test subject never touched)
+    val_idx = rng.choice(tr_idx, size=max(1, int(0.1 * len(tr_idx))), replace=False)
+    trn_idx = np.setdiff1d(tr_idx, val_idx)
+    cw = compute_class_weight("balanced", classes=np.array([1, 2, 3]), y=ya[trn_idx].numpy())
+    w = torch.tensor([cw[0] if c == 1 else cw[1] if c == 2 else cw[2] for c in [1, 2, 3]],
+                     dtype=torch.float32, device=device)
+    tl = DataLoader(TensorDataset(Xa[trn_idx], ya[trn_idx]), batch_size=BS, shuffle=True)
+    vl = DataLoader(TensorDataset(Xa[val_idx], ya[val_idx]), batch_size=BS * 4)
+    sl = DataLoader(TensorDataset(Xa[te], ya[te]), batch_size=BS * 4)
+    m = StressCNN().to(device)
+    opt = torch.optim.Adam(m.parameters(), lr=LR)
+    crit = nn.CrossEntropyLoss(weight=w)
+    best_f1, bad, best_state = -1, 0, None
+    for ep in range(EP):
+        m.train()
+        for xb, yb in tl:
+            xb = xb.to(device)
+            yb = (yb == 2).long() + (yb == 3).long() * 2   # {1,2,3} -> {0,1,2}
+            yb = yb.to(device)
+            opt.zero_grad(); crit(m(xb), yb).backward(); opt.step()
+        m.eval(); pv, yv = [], []
+        with torch.no_grad():
+            for xb, yb in vl:
+                pv += m(xb.to(device)).argmax(1).cpu().tolist(); yv += yb.tolist()
+        yv = [0 if v == 1 else 1 if v == 2 else 2 for v in yv]
+        f1 = f1_score(yv, pv, average="macro", zero_division=0)
+        if f1 > best_f1:
+            best_f1, bad, best_state = f1, 0, {k: v.cpu() for k, v in m.state_dict().items()}
+        else:
+            bad += 1
+            if bad >= PATIENCE:
+                break
+    m.load_state_dict({k: v.to(device) for k, v in best_state.items()})
+    m.eval(); pt, yt = [], []
+    with torch.no_grad():
+        for xb, yb in sl:
+            pt += m(xb.to(device)).argmax(1).cpu().tolist(); yt += yb.tolist()
+    yt = [0 if v == 1 else 1 if v == 2 else 2 for v in yt]
+    acc, mf1 = accuracy_score(yt, pt), f1_score(yt, pt, average="macro", zero_division=0)
+    fold_metrics.append({"subject": test_s, "n_test": len(yt), "acc": acc, "macro_f1": mf1,
+                         "epochs": ep + 1, "y_true": yt, "y_pred": pt})
+    if best is None or mf1 > best[0]:
+        best = (mf1, test_s, best_state)
+    print(f"fold {fi + 1}/{len(uniq)} [{test_s}] acc {acc:.3f} macro-F1 {mf1:.3f} (ep {ep + 1})", flush=True)
+
+import json
+json.dump([{k: v for k, v in fm.items() if k not in ("y_true", "y_pred")} for fm in fold_metrics],
+          open(f"{OUT}/fold_metrics.json", "w"), indent=1)
+np.savez_compressed(f"{OUT}/fold_preds.npz",
+                    **{f"{fm['subject']}_true": np.array(fm["y_true"], dtype=np.int64)
+                       for fm in fold_metrics},
+                    **{f"{fm['subject']}_pred": np.array(fm["y_pred"], dtype=np.int64)
+                       for fm in fold_metrics})
+torch.save(best[2], f"{OUT}/best_model.pt")
+print("best fold:", best[1], f"macro-F1 {best[0]:.3f}")
+'''))
+
+cells.append(code('''# Report: aggregate LOSO results + pooled confusion matrix
+import json
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, f1_score
+
+fm = json.load(open(f"{OUT}/fold_metrics.json"))
+acc = np.array([f["acc"] for f in fm]); f1 = np.array([f["macro_f1"] for f in fm])
+print(f"LOSO folds: {len(fm)}")
+print(f"accuracy  {acc.mean():.3f} ± {acc.std():.3f}")
+print(f"macro-F1  {f1.mean():.3f} ± {f1.std():.3f}")
+print(f"{'subject':>8} {'acc':>6} {'macroF1':>8}")
+for f in fm:
+    print(f"{f['subject']:>8} {f['acc']:>6.3f} {f['macro_f1']:>8.3f}")
+
+preds = np.load(f"{OUT}/fold_preds.npz")
+yt = np.concatenate([preds[f"{s}_true"] for s in sorted(set(
+    k[:-5] for k in preds.files if k.endswith("_true")))])
+yp = np.concatenate([preds[f"{s}_pred"] for s in sorted(set(
+    k[:-5] for k in preds.files if k.endswith("_true")))])
+names = [LABEL_MAP[1], LABEL_MAP[2], LABEL_MAP[3]]
+cm = confusion_matrix(yt, yp, labels=[0, 1, 2])
+print("pooled per-class F1:", np.round(f1_score(yt, yp, average=None, zero_division=0), 3))
+fig, ax = plt.subplots(figsize=(5, 4))
+im = ax.imshow(cm, cmap="Blues")
+ax.set_xticks(range(3), names, rotation=30, ha="right"); ax.set_yticks(range(3), names)
+for i in range(3):
+    for j in range(3):
+        ax.text(j, i, cm[i, j], ha="center", va="center", fontsize=10,
+                color="white" if cm[i, j] > cm.max() / 2 else "black")
+fig.colorbar(im); ax.set_title("Pooled LOSO confusion matrix (true x pred)")
+ax.set_xlabel("predicted"); ax.set_ylabel("true")
+plt.tight_layout(); plt.savefig(f"{OUT}/cm.png", dpi=120)
+'''))
+
+cells.append(code('''# Save: label map + run card
+import json
+json.dump({str(k): v for k, v in LABEL_MAP.items()}, open(f"{OUT}/label_map.json", "w"), indent=1)
+card = {
+    "model": "StressCNN 1D-CNN (~225K params), wrist E4 only",
+    "input": f"6 channels x {WIN_S * FS} @ {FS}Hz, 60s windows, 50% overlap, per-subject z-norm",
+    "protocol": "leave-one-subject-out",
+    "classes": LABEL_MAP,
+    "artifacts": ["fold_metrics.json", "fold_preds.npz", "best_model.pt (best fold state_dict)",
+                "label_map.json", "cm.png", "examples.png", "windows.npz"],
+}
+json.dump(card, open(f"{OUT}/run_card.json", "w"), indent=1)
+print("saved:", sorted(__import__("os").listdir(OUT)))
+'''))
+
+cells.append(md("""## What next
+
+- **Honest baseline set.** Compare any future change (features, transformer, chest fusion) against the LOSO
+  macro-F1 above — same protocol, same splits, or the comparison means nothing.
+- **Binary stress vs non-stress** is the easier, more-cited variant: map amusement+baseline to 0 in the
+  config cell and re-run (expect high-80s/low-90s accuracy, like the WESAD paper's 93%).
+- **GoEmotions / text track** stays in `aditya369.ipynb` — separate notebook, separate story.
+"""))
+
+nb = {"cells": cells,
+      "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+                   "language_info": {"name": "python"}},
+      "nbformat": 4, "nbformat_minor": 5}
+json.dump(nb, open(DST, "w"), indent=1)
+print("wrote", DST, "cells:", len(cells))
