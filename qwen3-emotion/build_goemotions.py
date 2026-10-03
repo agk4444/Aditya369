@@ -55,7 +55,7 @@ cells[4] = code('''# Config — Qwen3-4B multi-label GoEmotions (swap MODEL_ID f
 import os, torch, random, numpy as np
 
 MODEL_ID = "Qwen/Qwen3-4B"       # "Qwen/Qwen3-1.7B" lighter (~4 GPU-h) | "Qwen/Qwen3-8B" heavier (~12 GPU-h)
-DATASET  = "google/goemotions"
+DATASET  = "google-research-datasets/go_emotions"
 DATA_CONFIG = "simplified"          # 27 emotions + neutral, multi-label
 MAX_LEN  = 160                      # Cell 6 re-derives from the data (p99, cap 192)
 EPOCHS   = 3
