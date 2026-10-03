@@ -74,10 +74,14 @@ Requires `transformers` and `bitsandbytes`.
 
 ```
 qwen3-emotion/
-├── build.py               # regenerates aditya369.ipynb (source of truth)
-├── aditya369.ipynb        # hardened Kaggle training notebook — press Run yourself
-├── aditya369-wesad.ipynb  # separate track: WESAD wearable-stress CNN (different task)
-└── build_wesad.py         # regenerates the WESAD notebook
+├── build.py                  # regenerates aditya369.ipynb (source of truth)
+├── aditya369.ipynb           # hardened Kaggle training notebook — press Run yourself
+├── aditya369-wesad.ipynb     # separate track: WESAD wearable-stress CNN (different task)
+├── build_wesad.py            # regenerates the WESAD notebook
+├── aditya369-wesad-binary.ipynb  # WESAD binary stress-vs-rest (15-fold LOSO)
+├── build_wesad_binary.py     # regenerates the binary notebook
+├── aditya369-goemotions.ipynb    # GoEmotions multi-label Qwen3-4B (BCE, resume-from-Hub)
+└── build_goemotions.py       # regenerates the GoEmotions notebook
 ```
 
 `build.py` is the source of truth for the notebook — edit it, run
@@ -103,7 +107,27 @@ Results (15-fold LOSO, ~10 min on a Kaggle T4):
 | macro F1 | 0.572 ± 0.171 |
 
 Wide per-subject variance (macro-F1 0.22–0.89) — the known hard part of WESAD.
-Next experiment: binary stress-vs-rest, the variant the WESAD paper reports 93% on.
+
+### Binary variant: stress vs rest (2026-10-03)
+
+Same model and protocol, labels remapped to binary (stress vs non-stress —
+baseline + amusement merged, matching the WESAD paper's binary task).
+
+- **Hub:** [agk4444/aditya369-wesad-binary](https://huggingface.co/agk4444/aditya369-wesad-binary)
+  (weights, model code, metrics, plots)
+
+Results (15-fold LOSO, ~10 min on a Kaggle T4):
+
+| metric   | mean  |
+|----------|-------|
+| accuracy | 0.871 |
+| F1       | 0.781 |
+| macro F1 | 0.845 |
+
+Four subjects perfect (S4, S6, S9, S10). Below the paper's ~93% binary
+benchmark — and the same subjects that tanked the 3-class run (S14, S17)
+are the worst here too. The per-subject variance persists in binary:
+some people's stress physiology just doesn't look like others'.
 
 ## Note
 
