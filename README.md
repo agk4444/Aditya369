@@ -83,6 +83,28 @@ qwen3-emotion/
 `build.py` is the source of truth for the notebook — edit it, run
 `python3 build.py`, and upload the regenerated `.ipynb` to Kaggle.
 
+## WESAD track (separate task)
+
+Wrist-wearable stress/affect classifier — different data, different model, different
+story from the text classifier above.
+
+- **Model:** small 1D-CNN (~225K params) on Empatica E4 wrist signals
+  (BVP 64Hz, EDA/TEMP 4Hz, ACC 32Hz → 6 channels @32Hz, 60s windows)
+- **Task:** 3-class — baseline / stress / amusement
+- **Protocol:** leave-one-subject-out over 15 subjects (the honest eval)
+- **Hub:** [agk4444/aditya369-wesad](https://huggingface.co/agk4444/aditya369-wesad)
+  (weights, model code, metrics, plots)
+
+Results (15-fold LOSO, ~10 min on a Kaggle T4):
+
+| metric   | mean          |
+|----------|---------------|
+| accuracy | 0.669 ± 0.155 |
+| macro F1 | 0.572 ± 0.171 |
+
+Wide per-subject variance (macro-F1 0.22–0.89) — the known hard part of WESAD.
+Next experiment: binary stress-vs-rest, the variant the WESAD paper reports 93% on.
+
 ## Note
 
 This repo previously held an early wearable-concept sketch (src/, docs/) built

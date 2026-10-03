@@ -27,12 +27,32 @@ cells.append(md("""# Aditya369-WESAD — wrist wearable stress/affect classifier
 > **Honest expectations:** the WESAD paper's own benchmark hits ~80% 3-class accuracy (wrist-only a bit lower).
 > Published 1D-CNN work lands ~0.70 macro-F1 with wide per-subject variance. If this notebook reports 95%+,
 > something leaked — check the subject split, not the model.
+
+> **Safety net:** set `PUSH_TO_HUB = True` in the config cell and attach your `HF_TOKEN` secret —
+> the best fold's weights, model code, metrics, and a model card are uploaded to
+> `agk4444/aditya369-wesad` when training finishes.
 """))
 
 cells.append(code('''# Hardware probe
 import subprocess
 print(subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv"],
                      capture_output=True, text=True).stdout)
+'''))
+
+cells.append(code('''# Secrets — best-effort (dataset is public/ungated, this only enables Hub upload)
+import os
+token = os.environ.get("HF_TOKEN")
+if not token:
+    try:
+        from kaggle_secrets import UserSecretsClient
+        token = UserSecretsClient().get_secret("HF_TOKEN")
+    except Exception as e:
+        print("HF_TOKEN not attached — Hub upload will be skipped:", type(e).__name__)
+if token:
+    os.environ["HF_TOKEN"] = token
+    from huggingface_hub import login
+    login(token=token)
+    print("HF login ok")
 '''))
 
 cells.append(code('''# Imports (all preinstalled on the Kaggle image) — versions printed for the record
@@ -58,6 +78,8 @@ BS        = 32
 LR        = 1e-3
 PATIENCE  = 7           # early stopping on val macro-F1
 SMOKE     = False       # True -> 3 subjects x 5 epochs, quick pipeline check
+PUSH_TO_HUB = False   # True (+ HF_TOKEN attached) -> upload best fold + card to the Hub
+HUB_REPO  = "agk4444/aditya369-wesad"
 OUT = "/kaggle/working/aditya369-wesad"
 os.makedirs(OUT, exist_ok=True)
 np.random.seed(SEED); torch.manual_seed(SEED)
@@ -171,7 +193,8 @@ plt.tight_layout(); plt.savefig(f"{OUT}/examples.png", dpi=100)
 print("class totals:", {LABEL_MAP[k]: int((ya == k).sum()) for k in LABEL_MAP})
 '''))
 
-cells.append(code('''# Model: small 1D-CNN (~225K params) — minutes per fold on a T4
+# --- Model source: defined once, reused for the notebook cell + model.py on the Hub ---
+MODEL_SRC = '''import torch
 import torch.nn as nn
 
 class StressCNN(nn.Module):
@@ -186,11 +209,20 @@ class StressCNN(nn.Module):
         self.head = nn.Sequential(nn.AdaptiveAvgPool1d(1), nn.Flatten(),
                                   nn.Dropout(0.3), nn.Linear(128, n_cls))
     def forward(self, x):
-        return self.head(self.feat(x))
+        return self.head(self.feat(x))'''
+
+cells.append(code('''# Model: small 1D-CNN (~225K params) — minutes per fold on a T4
+''' + MODEL_SRC + f'''
 
 model = StressCNN()
 n_params = sum(p.numel() for p in model.parameters())
-print(f"params: {n_params:,} | input: (6, {WIN_S * FS})")
+print(f"params: {{n_params:,}} | input: (6, {{WIN_S * FS}})")
+
+# persist the model code now: inspect.getsource() cannot see classes defined in
+# notebook cells, so the Hub upload reuses this exact source text instead
+with open(f"{{OUT}}/model.py", "w") as _f:
+    _f.write({MODEL_SRC!r})
+print("wrote", f"{{OUT}}/model.py")
 '''))
 
 cells.append(code('''# Train: leave-one-subject-out, 15 folds, early stopping on a val split of the train subjects
@@ -315,6 +347,89 @@ card = {
 }
 json.dump(card, open(f"{OUT}/run_card.json", "w"), indent=1)
 print("saved:", sorted(__import__("os").listdir(OUT)))
+'''))
+
+cells.append(code('''# Hub upload: best fold weights + model code + metrics + card (mirrors aditya369.ipynb)
+_HUB = bool(PUSH_TO_HUB and os.environ.get("HF_TOKEN"))
+if _HUB:
+    from huggingface_hub import HfApi
+    # OUT/model.py was written by the model cell from the exact class source
+
+    # model card from the actual run metrics
+    import json as _json
+    fm = _json.load(open(f"{OUT}/fold_metrics.json"))
+    acc = np.mean([x["acc"] for x in fm]); mf1 = np.mean([x["macro_f1"] for x in fm])
+    rows = "\\n".join(
+        f"| {x['subject']} | {x['acc']:.3f} | {x['macro_f1']:.3f} | {x['n_test']} |" for x in fm)
+    card_md = f"""---
+library_name: pytorch
+tags:
+- stress-detection
+- wesad
+- wearable
+- 1d-cnn
+license: apache-2.0
+---
+
+# Aditya369-WESAD — wrist stress/affect classifier
+
+by **AGK FIRE INC**
+
+Small 1D-CNN (~225K params) on wrist Empatica E4 signals — 3-class
+baseline / stress / amusement, leave-one-subject-out evaluated.
+
+## Results (LOSO, {len(fm)} folds)
+
+| metric   | mean |
+|----------|------|
+| accuracy | {acc:.3f} |
+| macro F1 | {mf1:.3f} |
+
+| subject | acc | macro F1 | n_test |
+|---------|-----|----------|--------|
+{rows}
+
+## Usage
+
+```python
+import torch, json
+from model import StressCNN
+
+labels = json.load(open("label_map.json"))          # {{"1": "baseline", ...}}
+model = StressCNN(n_ch=6, n_cls=3)
+model.load_state_dict(torch.load("best_model.pt", map_location="cpu"))
+model.eval()
+# x: (1, 6, 1920) float32 — 60s window @32Hz, per-subject z-scored,
+#    channels [BVP, EDA, TEMP, ACCx, ACCy, ACCz]
+with torch.no_grad():
+    pred = model(x).argmax(1).item()                # 0=baseline, 1=stress, 2=amusement
+```
+
+## Training
+
+- Data: WESAD, wrist only (BVP 64Hz, EDA/TEMP 4Hz, ACC 32Hz), resampled to 32Hz
+- 60s windows, 50% overlap, per-subject z-norm, majority-vote labels
+- Leave-one-subject-out, early stopping on a val split of train subjects
+- `best_model.pt` = state_dict of the best fold
+
+---
+
+© 2026 AGK FIRE INC. Released under Apache 2.0.
+"""
+    with open(f"{OUT}/README.md", "w") as f:
+        f.write(card_md)
+
+    api = HfApi()
+    api.create_repo(repo_id=HUB_REPO, exist_ok=True)
+    for fn in ["best_model.pt", "model.py", "label_map.json", "run_card.json",
+               "fold_metrics.json", "fold_preds.npz", "cm.png", "examples.png", "README.md"]:
+        p = f"{OUT}/{fn}"
+        if os.path.exists(p):
+            api.upload_file(path_or_fileobj=p, path_in_repo=fn, repo_id=HUB_REPO)
+            print("uploaded", fn)
+    print("pushed to", HUB_REPO)
+else:
+    print("hub upload skipped (set PUSH_TO_HUB=True with HF_TOKEN attached to enable)")
 '''))
 
 cells.append(md("""## What next
