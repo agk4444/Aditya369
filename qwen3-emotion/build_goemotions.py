@@ -69,7 +69,7 @@ else:
     BS, ACCUM = 8, 2                # effective batch 16
 USE_BF16 = torch.cuda.is_bf16_supported()
 OUT = "/kaggle/working/aditya369-goemotions"
-PUSH_TO_HUB = False   # True (+ HF_TOKEN attached) -> every 500-step checkpoint is pushed
+PUSH_TO_HUB = True    # False to disable; needs HF_TOKEN attached or pushes are skipped safely
                       #   to your Hub repo DURING training, + merged model at the end.
                       #   A later session auto-resumes from the newest checkpoint.
 HUB_REPO = "agk4444/aditya369-goemotions"
